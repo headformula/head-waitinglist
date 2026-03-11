@@ -274,14 +274,15 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
       // Check cooldown server-side before sending OTP
       const cooldownRes = await fetch('/api/scores/cooldown?email=' + encodeURIComponent(email.trim()))
       const cooldownData = await cooldownRes.json()
-      if (cooldownData.cooldownEnd && cooldownData.cooldownEnd > Date.now()) {
-        setEmailCooldownEnd(cooldownData.cooldownEnd)
+      if (!cooldownData.canPlay || (cooldownData.cooldownEnd && cooldownData.cooldownEnd > Date.now())) {
+        setEmailCooldownEnd(cooldownData.cooldownEnd || Date.now() + 24 * 60 * 60 * 1000)
+        setError('You already played today. Come back later!')
         setSubmitting(false)
         return
       }
 
-      // Check if this email is already associated with a different username
-      if (cooldownData.existingName && cooldownData.existingName.toLowerCase() !== playerName.trim().toLowerCase()) {
+      // Check if this email is already associated with a different username (skip for returning users)
+      if (!isReturningFlow && cooldownData.existingName && playerName.trim() && cooldownData.existingName.toLowerCase() !== playerName.trim().toLowerCase()) {
         setError(`This email is already linked to username "${cooldownData.existingName}"`)
         setSubmitting(false)
         return
@@ -355,7 +356,7 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
           .order('created_at', { ascending: false })
           .limit(1)
         if (scoreData?.[0]) {
-          if (!finalName && scoreData[0].name) {
+          if (scoreData[0].name) {
             finalName = scoreData[0].name
           }
           // Check if last play was within 24h
@@ -363,7 +364,17 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
           const cooldownMs = 24 * 60 * 60 * 1000
           const remaining = lastPlayed + cooldownMs - Date.now()
           if (remaining > 0) {
-            setReturningCooldownEnd(lastPlayed + cooldownMs)
+            // Check if follow-play was used after this score
+            const { data: followPlay } = await supabase
+              .from('follow_plays')
+              .select('created_at')
+              .eq('email', email.trim())
+              .gte('created_at', scoreData[0].created_at)
+              .limit(1)
+
+            if (!followPlay || followPlay.length === 0) {
+              setReturningCooldownEnd(lastPlayed + cooldownMs)
+            }
           }
         }
         if (!finalName) {
@@ -658,7 +669,7 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.9, duration: 0.5 }}
-                    onClick={() => { setIsReturningFlow(true); setStep('email') }}
+                    onClick={() => { setIsReturningFlow(true); setEmail(''); setPlayerName(''); setError(''); setStep('email') }}
                     className={`-mt-4 text-xs transition-colors cursor-pointer block mx-auto ${isDark ? 'text-white/30 hover:text-white/50' : 'text-black/30 hover:text-black/50'}`}
                     whileTap={{ scale: 0.95 }}
                   >

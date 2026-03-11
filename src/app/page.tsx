@@ -60,11 +60,24 @@ export default function Home() {
     }
   }, [])
 
-  const handleWaitingListComplete = (email: string, name: string) => {
+  const handleWaitingListComplete = async (email: string, name: string) => {
     setUserEmail(email)
     setUserName(name)
-    setIsVerified(true)
     storeUser(email, name, getStoredUser()?.lastPlayed)
+
+    // Check cooldown server-side before allowing play
+    try {
+      const res = await fetch('/api/scores/cooldown?email=' + encodeURIComponent(email))
+      const data = await res.json()
+      if (data.cooldownEnd && data.cooldownEnd > Date.now()) {
+        setCanPlay(false)
+        setCooldownEnd(data.cooldownEnd)
+        storeUser(email, name, data.cooldownEnd - COOLDOWN_MS)
+      }
+      if (data.followPlayUsed) setFollowPlayUsed(true)
+    } catch { /* fallback: allow play */ }
+
+    setIsVerified(true)
   }
 
   // Called from hero for returning users

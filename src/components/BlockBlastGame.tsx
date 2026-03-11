@@ -564,34 +564,46 @@ export function BlockBlastGame({ userEmail = '', userName = '', canPlay = true, 
                 You can play once every 24 hours. Come back later to climb the leaderboard.
               </p>
             </div>
-            {/* Mini leaderboard while waiting */}
-            {leaderboard.length > 0 && (
-              <div className={`w-full max-w-xs rounded-2xl border backdrop-blur-sm p-4 transition-colors duration-500 ${
-                isDark ? 'border-white/[0.08] bg-white/[0.03]' : 'border-black/[0.08] bg-black/[0.03]'
-              }`}>
-                <h3 className={`text-xs font-semibold uppercase tracking-widest text-center mb-3 ${isDark ? 'text-white/50' : 'text-black/50'}`}>Leaderboard</h3>
-                <div className="space-y-0.5">
-                  {leaderboard.slice(0, 5).map((entry, i) => (
-                    <div
-                      key={`${entry.name}-${entry.score}-${i}`}
-                      className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg ${
-                        i === 0 ? 'bg-yellow-400/10' : i === 1 ? (isDark ? 'bg-white/[0.04]' : 'bg-black/[0.04]') : i === 2 ? 'bg-orange-400/5' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-bold w-5 text-right tabular-nums ${
-                          i === 0 ? 'text-yellow-400' : i === 1 ? (isDark ? 'text-white/50' : 'text-black/50') : i === 2 ? 'text-orange-400' : (isDark ? 'text-white/20' : 'text-black/20')
-                        }`}>
-                          {i === 0 ? '\u{1F947}' : i === 1 ? '\u{1F948}' : i === 2 ? '\u{1F949}' : `${i + 1}`}
-                        </span>
-                        <span className={`text-xs truncate max-w-[100px] ${isDark ? 'text-white/80' : 'text-black/80'}`}>{entry.name}</span>
-                      </div>
-                      <span className={`text-xs font-bold tabular-nums ${isDark ? 'text-white' : 'text-black'}`}>{entry.score.toLocaleString()}</span>
+            {/* Podium while waiting */}
+            {leaderboard.length > 0 && (() => {
+              const top3 = leaderboard.slice(0, 3)
+              const ordered = [top3[1], top3[0], top3[2]].filter(Boolean)
+              const heights = ['h-24 sm:h-32', 'h-32 sm:h-44', 'h-20 sm:h-28']
+              const colors = [
+                isDark ? 'bg-white/[0.06] border-white/[0.08]' : 'bg-black/[0.04] border-black/[0.06]',
+                'bg-yellow-400/10 border-yellow-400/20',
+                isDark ? 'bg-white/[0.04] border-white/[0.06]' : 'bg-black/[0.03] border-black/[0.05]',
+              ]
+              return (
+                <div className="flex items-end justify-center gap-3 sm:gap-5">
+                  {ordered.map((entry, i) => (
+                    <div key={entry ? `${entry.name}-${i}` : `empty-${i}`} className="flex flex-col items-center">
+                      {entry ? (
+                        <>
+                          <span className={`text-xs sm:text-sm font-medium truncate max-w-[90px] sm:max-w-[120px] mb-2 ${isDark ? 'text-white/70' : 'text-black/70'}`}>
+                            {entry.name}
+                          </span>
+                          <div className={`w-24 sm:w-36 ${heights[i]} rounded-t-lg border border-b-0 backdrop-blur-sm ${colors[i]} flex items-center justify-center`}>
+                            <span className={`text-sm sm:text-base font-bold tabular-nums ${
+                              i === 1 ? (isDark ? 'text-yellow-400' : 'text-yellow-600') : isDark ? 'text-white/50' : 'text-black/50'
+                            }`}>
+                              {entry.score.toLocaleString()}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <span className={`text-xs sm:text-sm mb-2 ${isDark ? 'text-white/20' : 'text-black/20'}`}>---</span>
+                          <div className={`w-24 sm:w-36 ${heights[i]} rounded-t-lg border border-b-0 backdrop-blur-sm ${isDark ? 'bg-white/[0.02] border-white/[0.05]' : 'bg-black/[0.02] border-black/[0.04]'} flex items-center justify-center`}>
+                            <span className={`text-sm sm:text-base ${isDark ? 'text-white/15' : 'text-black/15'}`}>-</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )
+            })()}
           </div>
         )}
 
@@ -877,7 +889,7 @@ export function BlockBlastGame({ userEmail = '', userName = '', canPlay = true, 
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className={`text-sm font-bold w-6 text-right tabular-nums ${
+                    <span className={`text-sm font-bold w-6 text-center tabular-nums ${
                       i === 0 ? 'text-yellow-400' : i === 1 ? (isDark ? 'text-white/50' : 'text-black/50') : i === 2 ? 'text-orange-400' : (isDark ? 'text-white/20' : 'text-black/20')
                     }`}>
                       {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`}
