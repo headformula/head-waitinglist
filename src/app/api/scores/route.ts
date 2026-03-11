@@ -42,6 +42,21 @@ export async function POST(req: NextRequest) {
   }
 
   const trimmedEmail = email?.trim() || null
+  const trimmedName = name.trim().toLowerCase()
+
+  // Check if name is already taken by a different email
+  const { data: existingName } = await supabase
+    .from('scores')
+    .select('email')
+    .ilike('name', trimmedName)
+    .limit(1)
+
+  if (existingName && existingName.length > 0) {
+    const existingEmail = existingName[0].email?.trim()
+    if (existingEmail && existingEmail !== trimmedEmail) {
+      return NextResponse.json({ error: 'Name already taken' }, { status: 409 })
+    }
+  }
 
   // Server-side cooldown check: block if this email played in the last 24h
   if (trimmedEmail) {

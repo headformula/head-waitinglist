@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { StarsBackground } from '@/components/ui/stars-background'
 import { useTheme } from './ThemeProvider'
@@ -32,8 +32,8 @@ function OrbitingParticles({ size, isDark }: { size: number; isDark: boolean }) 
     const holdDuration = 3000
 
     // Logo: 3 circles aligned horizontally — 1 front center, 2 behind (left, right)
-    const logoR = maxRadius * 0.8
-    const behindOffset = maxRadius * 0.7
+    const logoR = maxRadius * 0.7
+    const behindOffset = maxRadius * 0.62
     const logoCircles: CircleConfig[] = [
       // Back-left
       { cx: -behindOffset * 0.7, cy: 0, r: logoR },
@@ -197,6 +197,8 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
   const [email, setEmail] = useState('')
   const [code, setCode] = useState(['', '', '', '', '', ''])
   const [playerName, setPlayerName] = useState('')
+  const [nameError, setNameError] = useState('')
+  const [checkingName, setCheckingName] = useState(false)
   const [error, setError] = useState('')
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const codeInputRefs = useRef<(HTMLInputElement | null)[]>([])
@@ -240,6 +242,27 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
 
   const [emailCooldownEnd, setEmailCooldownEnd] = useState<number | null>(null)
   const emailCooldown = useCountdown(emailCooldownEnd)
+
+  const handleNameSubmit = async () => {
+    const trimmed = playerName.trim()
+    if (!trimmed) return
+    setCheckingName(true)
+    setNameError('')
+    try {
+      const res = await fetch('/api/scores/check-name?name=' + encodeURIComponent(trimmed))
+      const data = await res.json()
+      if (data.taken) {
+        setNameError('Username already taken')
+      } else {
+        setStep('email')
+      }
+    } catch {
+      // If check fails, let them proceed (server will catch it on submit)
+      setStep('email')
+    } finally {
+      setCheckingName(false)
+    }
+  }
 
   const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -496,7 +519,7 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
   )
 
   // ── Podium (top 3) ─────────────────────────────────────────────────
-  const Podium = () => {
+  const podiumContent = useMemo(() => {
     const top3 = leaderboard.slice(0, 3)
     if (top3.length === 0) {
       return (
@@ -505,7 +528,7 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
     }
     // Order: 2nd, 1st, 3rd
     const ordered = [top3[1], top3[0], top3[2]].filter(Boolean)
-    const heights = ['h-16', 'h-24', 'h-12']
+    const heights = ['h-24 sm:h-32', 'h-32 sm:h-44', 'h-20 sm:h-28']
     const colors = [
       isDark ? 'bg-white/[0.06] border-white/[0.08]' : 'bg-black/[0.04] border-black/[0.06]',
       'bg-yellow-400/10 border-yellow-400/20',
@@ -513,7 +536,7 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
     ]
 
     return (
-      <div className="flex items-end justify-center gap-2 sm:gap-3">
+      <div className="flex items-end justify-center gap-3 sm:gap-5">
         {ordered.map((entry, i) => (
           <motion.div
             key={entry ? `${entry.name}-${i}` : `empty-${i}`}
@@ -524,11 +547,11 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
           >
             {entry ? (
               <>
-                <span className={`text-[11px] font-medium truncate max-w-[80px] sm:max-w-[100px] mb-1.5 ${isDark ? 'text-white/70' : 'text-black/70'}`}>
+                <span className={`text-xs sm:text-sm font-medium truncate max-w-[90px] sm:max-w-[120px] mb-2 ${isDark ? 'text-white/70' : 'text-black/70'}`}>
                   {entry.name}
                 </span>
-                <div className={`w-20 sm:w-24 ${heights[i]} rounded-t-lg border border-b-0 backdrop-blur-sm ${colors[i]} flex items-center justify-center`}>
-                  <span className={`text-xs font-bold tabular-nums ${
+                <div className={`w-24 sm:w-36 ${heights[i]} rounded-t-lg border border-b-0 backdrop-blur-sm ${colors[i]} flex items-center justify-center`}>
+                  <span className={`text-sm sm:text-base font-bold tabular-nums ${
                     i === 1 ? (isDark ? 'text-yellow-400' : 'text-yellow-600') : isDark ? 'text-white/50' : 'text-black/50'
                   }`}>
                     {entry.score.toLocaleString()}
@@ -537,9 +560,9 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
               </>
             ) : (
               <>
-                <span className={`text-[11px] mb-1.5 ${isDark ? 'text-white/20' : 'text-black/20'}`}>---</span>
-                <div className={`w-20 sm:w-24 ${heights[i]} rounded-t-lg border border-b-0 backdrop-blur-sm ${isDark ? 'bg-white/[0.02] border-white/[0.05]' : 'bg-black/[0.02] border-black/[0.04]'} flex items-center justify-center`}>
-                  <span className={`text-xs ${isDark ? 'text-white/15' : 'text-black/15'}`}>-</span>
+                <span className={`text-xs sm:text-sm mb-2 ${isDark ? 'text-white/20' : 'text-black/20'}`}>---</span>
+                <div className={`w-24 sm:w-36 ${heights[i]} rounded-t-lg border border-b-0 backdrop-blur-sm ${isDark ? 'bg-white/[0.02] border-white/[0.05]' : 'bg-black/[0.02] border-black/[0.04]'} flex items-center justify-center`}>
+                  <span className={`text-sm sm:text-base ${isDark ? 'text-white/15' : 'text-black/15'}`}>-</span>
                 </div>
               </>
             )}
@@ -547,7 +570,7 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
         ))}
       </div>
     )
-  }
+  }, [leaderboard, isDark])
 
   return (
     <div className={`relative w-full ${step === 'game' ? 'h-svh overflow-hidden' : 'min-h-svh overflow-x-hidden overflow-y-auto'} transition-colors duration-500 ${isDark ? 'bg-black' : 'bg-white'}`}>
@@ -862,22 +885,27 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="Pick your name"
+                      placeholder="Pick your username"
                       value={playerName}
-                      onChange={(e) => setPlayerName(e.target.value.slice(0, 20))}
+                      onChange={(e) => { setPlayerName(e.target.value.slice(0, 20)); setNameError('') }}
                       maxLength={20}
-                      className={`w-full backdrop-blur-sm rounded-full py-3 px-5 pr-14 focus:outline-none text-center text-[16px] transition-colors duration-500 ${
-                        isDark
-                          ? 'text-white bg-white/5 border border-white/10 focus:border-white/30 placeholder:text-white/30'
-                          : 'text-black bg-black/5 border border-black/10 focus:border-black/30 placeholder:text-black/30'
+                      className={`w-full backdrop-blur-sm rounded-full py-3 pl-14 pr-14 focus:outline-none text-center text-[16px] transition-colors duration-500 ${
+                        nameError
+                          ? 'border-red-400/60 ' + (isDark ? 'text-white bg-white/5 focus:border-red-400/80 placeholder:text-white/30' : 'text-black bg-black/5 focus:border-red-400/80 placeholder:text-black/30')
+                          : isDark
+                            ? 'text-white bg-white/5 border border-white/10 focus:border-white/30 placeholder:text-white/30'
+                            : 'text-black bg-black/5 border border-black/10 focus:border-black/30 placeholder:text-black/30'
                       }`}
                     />
+                    {nameError && (
+                      <p className="text-red-400 text-xs mt-1.5 text-center">{nameError}</p>
+                    )}
                     <button
                       type="button"
-                      onClick={() => { if (playerName.trim()) setStep('email') }}
-                      disabled={!playerName.trim()}
+                      onClick={handleNameSubmit}
+                      disabled={!playerName.trim() || checkingName}
                       className={`absolute right-1.5 top-1.5 w-9 h-9 flex items-center justify-center rounded-full transition-all duration-300 cursor-pointer group overflow-hidden ${
-                        playerName.trim()
+                        playerName.trim() && !checkingName
                           ? isDark
                             ? 'text-black bg-white hover:bg-white/90'
                             : 'text-white bg-black hover:bg-black/90'
@@ -904,7 +932,7 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5, duration: 0.5 }}
                 >
-                  <Podium />
+                  {podiumContent}
                 </motion.div>
 
                 <motion.button
