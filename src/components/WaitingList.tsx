@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Waves } from '@/components/ui/wave-background'
 import { useTheme } from './ThemeProvider'
+import { supabase } from '@/lib/supabase'
 
 type Step = 'email' | 'code' | 'success'
 
@@ -27,11 +28,25 @@ export function WaitingList({ onComplete }: WaitingListProps) {
     }
   }, [step])
 
-  const handleEmailSubmit = (e: React.FormEvent) => {
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (email) {
+    if (!email || submitting) return
+    setSubmitting(true)
+    try {
+      await supabase.from('waiting_list').upsert(
+        { email: email.trim() },
+        { onConflict: 'email' }
+      )
       setStep('success')
       onComplete?.(email)
+    } catch {
+      // still show success to not block UX
+      setStep('success')
+      onComplete?.(email)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -70,7 +85,7 @@ export function WaitingList({ onComplete }: WaitingListProps) {
   }
 
   return (
-    <div className={`relative w-full h-dvh overflow-hidden transition-colors duration-500 ${isDark ? 'bg-black' : 'bg-white'}`}>
+    <div className={`relative w-full h-svh overflow-hidden transition-colors duration-500 ${isDark ? 'bg-black' : 'bg-white'}`}>
       {/* Waves background */}
       <div className="absolute inset-0 z-0">
         <Waves

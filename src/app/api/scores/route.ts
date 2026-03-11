@@ -1,37 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs'
-import path from 'path'
-
-type Score = {
-  name: string
-  email?: string
-  score: number
-  date: string
-  joinedWaitingList?: boolean
-}
-
-const SCORES_FILE = path.join(process.cwd(), 'data', 'scores.json')
-const MAX_SCORES = 50
-
-function readScores(): Score[] {
-  try {
-    const data = fs.readFileSync(SCORES_FILE, 'utf-8')
-    return JSON.parse(data)
-  } catch {
-    return []
-  }
-}
-
-function writeScores(scores: Score[]) {
-  fs.writeFileSync(SCORES_FILE, JSON.stringify(scores, null, 2))
-}
+import { supabase } from '@/lib/supabase'
 
 export async function GET() {
-  const scores = readScores()
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 20)
-  // Don't expose emails to the client
-  const safeScores = scores.map(({ name, score, date }) => ({ name, score, date }))
+  const { data, error } = await supabase
+    .from('scores')
+    .select('name, score, created_at')
+    .order('score', { ascending: false })
+    .limit(20)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  const safeScores = (data ?? []).map(({ name, score, created_at }) => ({
+    name,
+    score,
+    date: created_at,
+  }))
+
   return NextResponse.json(safeScores)
 }
 
@@ -49,17 +33,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Email non valida' }, { status: 400 })
   }
 
-  const scores = readScores()
-  scores.push({
+  const { error: scoreError } = await supabase.from('scores').insert({
     name: name.trim(),
-    email: email?.trim() || undefined,
+    email: email?.trim() || null,
     score,
-    date: new Date().toISOString(),
-    joinedWaitingList: !!joinWaitingList,
+    joined_waiting_list: !!joinWaitingList,
   })
 
-  scores.sort((a, b) => b.score - a.score)
-  writeScores(scores.slice(0, MAX_SCORES))
+  if (scoreError) return NextResponse.json({ error: scoreError.message }, { status: 500 })
+
+  // Also add to waiting list if requested
+  if (joinWaitingList && email?.trim()) {
+    await supabase.from('waiting_list').upsert(
+      { email: email.trim() },
+      { onConflict: 'email' }
+    )
+  }
 
   return NextResponse.json({ ok: true })
 }

@@ -30,18 +30,18 @@ type LeaderboardEntry = {
 type BlockColorSet = { light: string; base: string; dark: string }
 
 const TECH_PALETTE: BlockColorSet[] = [
-  // Cyan     – hsl(190 45% 68/56/44)
-  { light: '#84CCD8', base: '#5BB8C8', dark: '#3E929F' },
-  // Blue     – hsl(220 45% 68/56/44)
-  { light: '#84A3D8', base: '#5B7FC8', dark: '#3E639F' },
-  // Violet   – hsl(265 40% 70/58/46)
-  { light: '#A990D8', base: '#8B6DC8', dark: '#6D4FA0' },
-  // Lime     – hsl(100 40% 67/55/43)
-  { light: '#9DD485', base: '#7BBF5E', dark: '#5E9944' },
-  // Orange   – hsl( 25 50% 70/58/46)
-  { light: '#DAAD85', base: '#CC8E5E', dark: '#A36E44' },
-  // Magenta  – hsl(330 45% 68/56/44)
-  { light: '#D884A8', base: '#C85B8B', dark: '#9F3E6D' },
+  // Cyan     – hsl(190 45% 60/56/52)
+  { light: '#6CC4D2', base: '#5BB8C8', dark: '#4AACBE' },
+  // Blue     – hsl(220 45% 60/56/52)
+  { light: '#6C8FD2', base: '#5B7FC8', dark: '#4A6FBE' },
+  // Violet   – hsl(265 40% 62/58/54)
+  { light: '#977DD2', base: '#8B6DC8', dark: '#7F5DBE' },
+  // Lime     – hsl(100 40% 59/55/51)
+  { light: '#88CA6C', base: '#7BBF5E', dark: '#6EB450' },
+  // Orange   – hsl( 25 50% 62/58/54)
+  { light: '#D49A6C', base: '#CC8E5E', dark: '#C48250' },
+  // Magenta  – hsl(330 45% 60/56/52)
+  { light: '#D26C97', base: '#C85B8B', dark: '#BE4A7F' },
 ]
 
 const COLORS = TECH_PALETTE.map(c => c.base)
@@ -66,11 +66,7 @@ function blockStyle(color: string, mode: 'placed' | 'preview' | 'ghost' = 'place
   return {
     background: `linear-gradient(180deg, ${v.light} 0%, ${v.base} 45%, ${v.dark} 100%)`,
     border: `1px solid ${v.dark}70`,
-    boxShadow: [
-      `0 4px 10px ${v.dark}25`,                 // soft drop shadow
-      `inset 0 1px 0 ${v.light}45`,             // top glass highlight
-      `inset 0 -1px 2px ${v.dark}20`,           // subtle inner shadow
-    ].join(', '),
+    boxShadow: 'none',
     opacity,
   }
 }
@@ -362,9 +358,8 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
         className="relative z-10 flex flex-col items-center gap-8"
       >
         {/* Title */}
-        <div className="text-center space-y-2">
-          <h2 className={`text-3xl font-bold tracking-tight transition-colors duration-500 ${isDark ? 'text-white' : 'text-black'}`}>Block Blast</h2>
-          <p className={`text-sm font-light transition-colors duration-500 ${isDark ? 'text-white/40' : 'text-black/40'}`}>Mentre aspetti, gioca un po&apos;</p>
+        <div className="text-center">
+          <p className={`text-3xl font-light transition-colors duration-500 ${isDark ? 'text-white/60' : 'text-black/60'}`}>Mentre aspetti, gioca un po&apos;</p>
         </div>
 
         {/* Score */}
@@ -405,7 +400,7 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
                   <motion.div
                     key={key}
                     className={`
-                      rounded-md transition-all duration-150
+                      rounded-lg transition-all duration-150
                       ${cell ? '' : isDark ? 'bg-white/[0.04]' : 'bg-black/[0.04]'}
                       ${isPreview ? isDark ? 'ring-2 ring-white/30' : 'ring-2 ring-black/30' : ''}
                     `}
@@ -581,7 +576,7 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
                       row.map((filled, c) => (
                         <div
                           key={`${r}-${c}`}
-                          className="rounded-sm pointer-events-none"
+                          className="rounded-md pointer-events-none"
                           style={filled ? blockStyle(piece.color) : { backgroundColor: 'transparent' }}
                         />
                       ))
@@ -623,7 +618,7 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
               row.map((filled, c) => (
                 <div
                   key={`${r}-${c}`}
-                  className="rounded-md"
+                  className="rounded-lg"
                   style={filled ? blockStyle(draggedPiece.color, 'ghost') : { backgroundColor: 'transparent' }}
                 />
               ))
@@ -643,10 +638,7 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
         <div className={`rounded-2xl border backdrop-blur-sm p-6 transition-colors duration-500 ${
           isDark ? 'border-white/[0.08] bg-white/[0.03]' : 'border-black/[0.08] bg-black/[0.03]'
         }`}>
-          <div className="flex items-center justify-center gap-2 mb-5">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isDark ? 'text-white/40' : 'text-black/40'}>
-              <path d="M18 20V10" /><path d="M12 20V4" /><path d="M6 20v-6" />
-            </svg>
+          <div className="flex items-center justify-center mb-5">
             <h3 className={`text-sm font-semibold uppercase tracking-widest text-center ${isDark ? 'text-white/50' : 'text-black/50'}`}>Classifica</h3>
           </div>
           {leaderboard.length === 0 ? (

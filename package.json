@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.99.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.35.2",
     "gsap": "^3.14.2",

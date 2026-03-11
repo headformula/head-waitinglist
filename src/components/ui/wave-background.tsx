@@ -47,6 +47,8 @@ export function Waves({
     const noiseRef = useRef<((x: number, y: number) => number) | null>(null)
     const rafRef = useRef<number | null>(null)
     const boundingRef = useRef<DOMRect | null>(null)
+    const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const lastSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 })
 
     useEffect(() => {
         if (!containerRef.current || !svgRef.current) return
@@ -65,6 +67,7 @@ export function Waves({
 
         return () => {
             if (rafRef.current) cancelAnimationFrame(rafRef.current)
+            if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current)
             window.removeEventListener('resize', onResize)
             window.removeEventListener('mousemove', onMouseMove)
             window.removeEventListener('touchstart', onTouchStart)
@@ -78,6 +81,7 @@ export function Waves({
         const { width, height } = boundingRef.current
         svgRef.current.style.width = `${width}px`
         svgRef.current.style.height = `${height}px`
+        lastSizeRef.current = { width, height }
     }
 
     const setLines = () => {
@@ -135,8 +139,18 @@ export function Waves({
     }, [strokeColor, backgroundColor])
 
     const onResize = () => {
-        setSize()
-        setLines()
+        if (!containerRef.current) return
+        const rect = containerRef.current.getBoundingClientRect()
+        const dw = Math.abs(rect.width - lastSizeRef.current.width)
+        const dh = Math.abs(rect.height - lastSizeRef.current.height)
+        // Skip small height changes (mobile address bar show/hide)
+        // Only rebuild for significant changes like orientation or real resize
+        if (dw < 50 && dh < 150) return
+        if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current)
+        resizeTimerRef.current = setTimeout(() => {
+            setSize()
+            setLines()
+        }, 300)
     }
 
     const onMouseMove = (e: MouseEvent) => {
