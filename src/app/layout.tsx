@@ -3,9 +3,27 @@ import "./globals.css";
 import { ThemeProviderWrapper } from "./theme-wrapper";
 
 export const metadata: Metadata = {
-  title: "HeadFormula | Software House",
+  title: "headformula - products, not promises.",
   description:
-    "Trasformiamo le tue idee in software di qualità. Sviluppo web, app mobile e soluzioni SaaS su misura.",
+    "We're building apps that reshape what software can do. Join the waitlist for early access and a chance to win 1 SOL.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
+  openGraph: {
+    title: "headformula - products, not promises.",
+    description:
+      "We're building apps that reshape what software can do. Join the waitlist for early access and a chance to win 1 SOL.",
+    url: "https://headformula.studio",
+    siteName: "headformula",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "headformula - products, not promises.",
+    description:
+      "We're building apps that reshape what software can do. Join the waitlist for early access and a chance to win 1 SOL.",
+  },
 };
 
 export default function RootLayout({

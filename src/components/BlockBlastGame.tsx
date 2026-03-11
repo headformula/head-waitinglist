@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 import { useTheme } from './ThemeProvider'
+import { unlockAudio, playPlace, playClear, playCombo, playGameOver, playInvalid } from '@/lib/sounds'
 
 const GRID_SIZE = 8
 const CELL_SIZE = 38
@@ -118,12 +119,41 @@ function canPlaceAnywhere(grid: (string | null)[][], piece: Piece): boolean {
   return false
 }
 
-type BlockBlastProps = {
-  userEmail?: string
-  isOnWaitingList?: boolean
+function CooldownTimer({ cooldownEnd, isDark }: { cooldownEnd?: number | null; isDark: boolean }) {
+  const [text, setText] = useState('')
+  useEffect(() => {
+    if (!cooldownEnd) return
+    const tick = () => {
+      const diff = cooldownEnd - Date.now()
+      if (diff <= 0) { setText(''); return }
+      const h = Math.floor(diff / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      const s = Math.floor((diff % 60000) / 1000)
+      setText(`${h}h ${m.toString().padStart(2, '0')}m ${s.toString().padStart(2, '0')}s`)
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [cooldownEnd])
+  if (!text) return null
+  return (
+    <p className={`text-xs ${isDark ? 'text-white/30' : 'text-black/30'}`}>
+      Next game in <span className={isDark ? 'text-white/50' : 'text-black/50'}>{text}</span>
+    </p>
+  )
 }
 
-export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: BlockBlastProps) {
+type BlockBlastProps = {
+  userEmail?: string
+  userName?: string
+  canPlay?: boolean
+  cooldownEnd?: number | null
+  onGamePlayed?: () => void
+  embedded?: boolean
+  followPlayUsed?: boolean
+}
+
+export function BlockBlastGame({ userEmail = '', userName = '', canPlay = true, cooldownEnd, onGamePlayed, embedded = false, followPlayUsed = false }: BlockBlastProps) {
   const { theme } = useTheme()
   const isDark = theme === 'dark'
   const sectionRef = useRef<HTMLDivElement>(null)
@@ -149,23 +179,87 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
   } | null>(null)
   const [dropTarget, setDropTarget] = useState<{ row: number; col: number } | null>(null)
 
+  // Particles for explosion effect
+  type Particle = {
+    id: number
+    x: number
+    y: number
+    color: string
+    vx: number
+    vy: number
+    size: number
+    life: number
+  }
+  const [particles, setParticles] = useState<Particle[]>([])
+  const particleId = useRef(0)
+
+  // Screen shake
+  const [shake, setShake] = useState(0)
 
   // Leaderboard
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
-  const [playerName, setPlayerName] = useState('')
-  const [playerEmail, setPlayerEmail] = useState('')
-  const [joinWaitingList, setJoinWaitingList] = useState(true)
+  const [playerName, setPlayerName] = useState(userName)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-
-  // Pre-fill email from waiting list
-  useEffect(() => {
-    if (userEmail) setPlayerEmail(userEmail)
-  }, [userEmail])
   const leaderboardRef = useRef<HTMLDivElement>(null)
   const leaderboardInView = useInView(leaderboardRef, { amount: 0.2 })
 
   const draggedPiece = dragging ? pieces[dragging.pieceIndex] : null
+
+  /** Spawn explosion particles from a set of grid cells. */
+  const spawnParticles = useCallback((cells: Set<string>, gridEl: HTMLDivElement | null) => {
+    if (!gridEl) return
+    const rect = gridEl.getBoundingClientRect()
+    const newParticles: Particle[] = []
+    cells.forEach(key => {
+      const [r, c] = key.split(',').map(Number)
+      const cx = GRID_PAD + c * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2
+      const cy = GRID_PAD + r * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2
+      // 4-6 particles per cell
+      const count = 4 + Math.floor(Math.random() * 3)
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.8
+        const speed = 60 + Math.random() * 120
+        newParticles.push({
+          id: particleId.current++,
+          x: cx,
+          y: cy,
+          color: COLORS[Math.floor(Math.random() * COLORS.length)],
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: 3 + Math.random() * 4,
+          life: 1,
+        })
+      }
+    })
+    setParticles(prev => [...prev, ...newParticles])
+  }, [])
+
+  // Animate particles
+  useEffect(() => {
+    if (particles.length === 0) return
+    let raf: number
+    let last = performance.now()
+    const tick = (now: number) => {
+      const dt = Math.min((now - last) / 1000, 0.05)
+      last = now
+      setParticles(prev => {
+        const next = prev
+          .map(p => ({
+            ...p,
+            x: p.x + p.vx * dt,
+            y: p.y + p.vy * dt,
+            vy: p.vy + 300 * dt, // gravity
+            life: p.life - dt * 1.8,
+          }))
+          .filter(p => p.life > 0)
+        return next
+      })
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [particles.length > 0])
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -181,26 +275,71 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
     const remaining = pieces.filter(Boolean) as Piece[]
     if (remaining.length > 0) {
       const anyCanPlace = remaining.some(p => canPlaceAnywhere(grid, p))
-      if (!anyCanPlace) setGameOver(true)
+      if (!anyCanPlace) {
+        setGameOver(true)
+        playGameOver()
+        onGamePlayed?.()
+      }
     }
   }, [grid, pieces])
 
-  // Convert pointer position to grid cell
+  // Auto-submit score when game over and name is already known
+  const autoSubmitted = useRef(false)
+  useEffect(() => {
+    if (gameOver && playerName.trim() && !submitted && !submitting && !autoSubmitted.current) {
+      autoSubmitted.current = true
+      submitScore()
+    }
+  }, [gameOver])
+
+  // Convert pointer position to the nearest grid cell (continuous, not just floor)
   const pointerToCell = useCallback((clientX: number, clientY: number): { row: number; col: number } | null => {
     if (!gridRef.current) return null
     const rect = gridRef.current.getBoundingClientRect()
     const x = clientX - rect.left - GRID_PAD
     const y = clientY - rect.top - GRID_PAD
-    const col = Math.floor(x / (CELL_SIZE + CELL_GAP))
-    const row = Math.floor(y / (CELL_SIZE + CELL_GAP))
-    if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE) return null
-    return { row, col }
+    const col = Math.round(x / (CELL_SIZE + CELL_GAP) - 0.5)
+    const row = Math.round(y / (CELL_SIZE + CELL_GAP) - 0.5)
+    // Allow a generous margin outside the grid edges
+    if (row < -1 || row > GRID_SIZE || col < -1 || col > GRID_SIZE) return null
+    return { row: Math.max(0, Math.min(GRID_SIZE - 1, row)), col: Math.max(0, Math.min(GRID_SIZE - 1, col)) }
   }, [])
+
+  /**
+   * Find the best valid drop position near the pointer.
+   * Searches a small radius around the raw cell for the closest spot where the piece fits.
+   */
+  const findBestDrop = useCallback((rawCell: { row: number; col: number } | null, piece: Piece): { row: number; col: number } | null => {
+    if (!rawCell) return null
+    // Try exact position first
+    if (canPlace(grid, piece, rawCell.row, rawCell.col)) return rawCell
+    // Search nearby cells in expanding radius (1-2 cells away)
+    const SEARCH_RADIUS = 2
+    let bestDist = Infinity
+    let best: { row: number; col: number } | null = null
+    for (let dr = -SEARCH_RADIUS; dr <= SEARCH_RADIUS; dr++) {
+      for (let dc = -SEARCH_RADIUS; dc <= SEARCH_RADIUS; dc++) {
+        if (dr === 0 && dc === 0) continue
+        const r = rawCell.row + dr
+        const c = rawCell.col + dc
+        if (r < 0 || c < 0 || r >= GRID_SIZE || c >= GRID_SIZE) continue
+        if (canPlace(grid, piece, r, c)) {
+          const dist = dr * dr + dc * dc
+          if (dist < bestDist) {
+            bestDist = dist
+            best = { row: r, col: c }
+          }
+        }
+      }
+    }
+    return best
+  }, [grid])
 
   // Pointer handlers
   const handlePointerDown = useCallback((index: number, e: React.PointerEvent) => {
     if (gameOver) return
     e.preventDefault()
+    unlockAudio()
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
     setDragging({
       pieceIndex: index,
@@ -216,18 +355,22 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
     const piece = pieces[dragging.pieceIndex]
     if (!piece) return
     const offsetY = -60
-    const cell = pointerToCell(
+    const rawCell = pointerToCell(
       e.clientX - Math.floor(piece.shape[0].length / 2) * (CELL_SIZE + CELL_GAP),
       e.clientY + offsetY - Math.floor(piece.shape.length / 2) * (CELL_SIZE + CELL_GAP)
     )
-    setDropTarget(cell)
-  }, [dragging, pieces, pointerToCell])
+    setDropTarget(findBestDrop(rawCell, piece))
+  }, [dragging, pieces, pointerToCell, findBestDrop])
 
   const handlePointerUp = useCallback(() => {
     if (!dragging || !draggedPiece) {
       setDragging(null)
       setDropTarget(null)
       return
+    }
+
+    if (dropTarget && !canPlace(grid, draggedPiece, dropTarget.row, dropTarget.col)) {
+      playInvalid()
     }
 
     if (dropTarget && canPlace(grid, draggedPiece, dropTarget.row, dropTarget.col)) {
@@ -254,11 +397,37 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
       }
 
       let points = draggedPiece.shape.flat().filter(Boolean).length * 10
+
+      // Sound: piece placed
+      playPlace()
+
       if (toClear.size > 0) {
         const newCombo = combo + 1
         setCombo(newCombo)
         points += toClear.size * 10 * newCombo
+
+        // Count lines being cleared (rows + cols)
+        let lineCount = 0
+        for (let r = 0; r < GRID_SIZE; r++) {
+          if (newGrid[r].every(cell => cell !== null)) lineCount++
+        }
+        for (let c = 0; c < GRID_SIZE; c++) {
+          if (newGrid.every(row => row[c] !== null)) lineCount++
+        }
+
+        // Sound: line clear + combo
+        playClear(lineCount)
+        if (newCombo > 1) playCombo(newCombo)
+
+        // Screen shake – intensity scales with lines
+        setShake(lineCount)
+        setTimeout(() => setShake(0), 400)
+
         setClearing(toClear)
+
+        // Spawn explosion particles
+        spawnParticles(toClear, gridRef.current)
+
         setTimeout(() => {
           const clearedGrid = newGrid.map(r => [...r])
           toClear.forEach(key => {
@@ -291,19 +460,22 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
 
   const submitScore = async () => {
     if (!playerName.trim() || submitting) return
-    if (joinWaitingList && !isOnWaitingList && !playerEmail.trim()) return
     setSubmitting(true)
     try {
-      await fetch('/api/scores', {
+      const res = await fetch('/api/scores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: playerName.trim(),
-          email: playerEmail.trim(),
+          email: userEmail.trim(),
           score,
-          joinWaitingList: !isOnWaitingList && joinWaitingList,
+          joinWaitingList: false,
         }),
       })
+      if (res.status === 429) {
+        // Server rejected: already played within 24h
+        // Score won't be saved, but still show game over
+      }
       setSubmitted(true)
       await fetchLeaderboard()
     } catch { /* ignore */ }
@@ -320,9 +492,7 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
     setGameOver(false)
     setClearing(new Set())
     setSubmitted(false)
-    setPlayerName('')
-    setPlayerEmail(userEmail)
-    setJoinWaitingList(true)
+    autoSubmitted.current = false
   }
 
   // Preview cells on grid
@@ -343,27 +513,90 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
   return (
     <div
       ref={sectionRef}
-      className={`min-h-screen flex flex-col items-center justify-center px-4 py-20 relative select-none transition-colors duration-500 ${isDark ? 'bg-black' : 'bg-white'}`}
+      className={`${embedded ? 'h-full' : 'min-h-screen'} flex flex-col items-center justify-center px-4 ${embedded ? 'py-4' : 'py-20'} relative select-none transition-colors duration-500 ${embedded ? '' : isDark ? 'bg-black' : 'bg-white'}`}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={() => { setDragging(null); setDropTarget(null) }}
       style={{ touchAction: dragging ? 'none' : 'auto' }}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(99,102,241,0.08)_0%,_transparent_70%)]" />
+      {!embedded && <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(99,102,241,0.08)_0%,_transparent_70%)]" />}
 
       <motion.div
         initial={{ opacity: 0, y: 60 }}
-        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 60 }}
+        animate={(embedded || isInView) ? { opacity: 1, y: 0 } : { opacity: 0, y: 60 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
-        className="relative z-10 flex flex-col items-center gap-8"
+        className={`relative z-10 flex flex-col items-center ${embedded ? 'gap-4' : 'gap-8'}`}
       >
+        {/* Prize Banner */}
+        {!embedded && (
+          <div className={`w-full max-w-sm rounded-2xl border backdrop-blur-sm px-5 py-3 text-center transition-colors duration-500 ${
+            isDark
+              ? 'border-purple-400/20 bg-gradient-to-r from-purple-500/10 via-transparent to-cyan-500/10'
+              : 'border-purple-400/20 bg-gradient-to-r from-purple-500/5 via-transparent to-cyan-500/5'
+          }`}>
+            <p className={`text-sm font-semibold ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>
+              Up for grabs: <span className={`${isDark ? 'text-cyan-300' : 'text-cyan-600'}`}>1 SOL</span> for the #1 on the leaderboard
+            </p>
+          </div>
+        )}
+
         {/* Title */}
-        <div className="text-center">
-          <p className={`text-3xl font-light transition-colors duration-500 ${isDark ? 'text-white/60' : 'text-black/60'}`}>Mentre aspetti, gioca un po&apos;</p>
-        </div>
+        {!embedded && (
+          <div className="text-center">
+            <p className={`text-3xl font-light transition-colors duration-500 ${isDark ? 'text-white/60' : 'text-black/60'}`}>While you wait, play a little</p>
+          </div>
+        )}
+
+        {/* Cooldown block */}
+        {!canPlay && !gameOver && (
+          <div className="flex flex-col items-center gap-6 py-12">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center ${isDark ? 'bg-white/[0.06]' : 'bg-black/[0.06]'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" className={`w-7 h-7 ${isDark ? 'text-white/30' : 'text-black/30'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+            </div>
+            <div className="text-center space-y-2">
+              <p className={`text-base font-semibold ${isDark ? 'text-white/70' : 'text-black/70'}`}>
+                You already played today
+              </p>
+              <CooldownTimer cooldownEnd={cooldownEnd} isDark={isDark} />
+              <p className={`text-xs max-w-[240px] ${isDark ? 'text-white/25' : 'text-black/25'}`}>
+                You can play once every 24 hours. Come back later to climb the leaderboard.
+              </p>
+            </div>
+            {/* Mini leaderboard while waiting */}
+            {leaderboard.length > 0 && (
+              <div className={`w-full max-w-xs rounded-2xl border backdrop-blur-sm p-4 transition-colors duration-500 ${
+                isDark ? 'border-white/[0.08] bg-white/[0.03]' : 'border-black/[0.08] bg-black/[0.03]'
+              }`}>
+                <h3 className={`text-xs font-semibold uppercase tracking-widest text-center mb-3 ${isDark ? 'text-white/50' : 'text-black/50'}`}>Leaderboard</h3>
+                <div className="space-y-0.5">
+                  {leaderboard.slice(0, 5).map((entry, i) => (
+                    <div
+                      key={`${entry.name}-${entry.score}-${i}`}
+                      className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg ${
+                        i === 0 ? 'bg-yellow-400/10' : i === 1 ? (isDark ? 'bg-white/[0.04]' : 'bg-black/[0.04]') : i === 2 ? 'bg-orange-400/5' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-bold w-5 text-right tabular-nums ${
+                          i === 0 ? 'text-yellow-400' : i === 1 ? (isDark ? 'text-white/50' : 'text-black/50') : i === 2 ? 'text-orange-400' : (isDark ? 'text-white/20' : 'text-black/20')
+                        }`}>
+                          {i === 0 ? '\u{1F947}' : i === 1 ? '\u{1F948}' : i === 2 ? '\u{1F949}' : `${i + 1}`}
+                        </span>
+                        <span className={`text-xs truncate max-w-[100px] ${isDark ? 'text-white/80' : 'text-black/80'}`}>{entry.name}</span>
+                      </div>
+                      <span className={`text-xs font-bold tabular-nums ${isDark ? 'text-white' : 'text-black'}`}>{entry.score.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Score */}
-        <div className="flex items-center gap-6">
+        {(canPlay || gameOver) && <div className="flex items-center gap-6">
           <div className="text-center">
             <div className={`text-xs uppercase tracking-widest transition-colors duration-500 ${isDark ? 'text-white/40' : 'text-black/40'}`}>Score</div>
             <div className={`text-2xl font-bold tabular-nums transition-colors duration-500 ${isDark ? 'text-white' : 'text-black'}`}>{score}</div>
@@ -374,14 +607,14 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
               <div className="text-2xl font-bold text-yellow-400">x{combo}</div>
             </motion.div>
           )}
-        </div>
+        </div>}
 
         {/* Grid */}
-        <div
+        {(canPlay || gameOver) && <div
           ref={gridRef}
           className={`relative rounded-2xl p-2 backdrop-blur-sm transition-colors duration-500 ${
             isDark ? 'bg-white/[0.03] border border-white/[0.06]' : 'bg-black/[0.03] border border-black/[0.06]'
-          }`}
+          } ${shake > 0 ? 'animate-shake' : ''}`}
         >
           <div
             className="grid gap-[2px]"
@@ -406,7 +639,10 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
                     `}
                     style={
                       isClearing
-                        ? { backgroundColor: '#fff' }
+                        ? {
+                            background: `radial-gradient(circle, #fff 0%, ${cell ?? '#fff'} 60%, transparent 100%)`,
+                            boxShadow: `0 0 16px ${cell ?? '#fff'}90, 0 0 32px ${cell ?? '#fff'}40`,
+                          }
                         : isPreview && draggedPiece
                           ? blockStyle(draggedPiece.color, 'preview')
                           : cell
@@ -415,12 +651,12 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
                     }
                     animate={
                       isClearing
-                        ? { scale: [1, 1.2, 0], opacity: [1, 1, 0] }
+                        ? { scale: [1, 1.3, 0], opacity: [1, 1, 0] }
                         : { scale: 1, opacity: 1 }
                     }
                     transition={
                       isClearing
-                        ? { duration: 0.4, ease: 'easeOut' }
+                        ? { duration: 0.45, ease: 'easeOut' }
                         : { duration: 0.15 }
                     }
                   />
@@ -441,113 +677,101 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
                 <div className="text-center space-y-4 px-4">
                   <p className={`text-sm uppercase tracking-widest ${isDark ? 'text-white/50' : 'text-black/50'}`}>Game Over</p>
                   <p className={`text-4xl font-bold tabular-nums ${isDark ? 'text-white' : 'text-black'}`}>{score}</p>
-                  {!submitted ? (
-                    <form onSubmit={(e) => { e.preventDefault(); submitScore() }} className="space-y-2.5">
-                      <input
-                        type="text"
-                        placeholder="Il tuo nome"
-                        value={playerName}
-                        onChange={(e) => setPlayerName(e.target.value.slice(0, 20))}
-                        className={`w-full rounded-full py-2.5 px-4 focus:outline-none text-center text-[16px] ${
-                          isDark
-                            ? 'text-white bg-white/10 border border-white/15 focus:border-white/30 placeholder:text-white/25'
-                            : 'text-black bg-black/10 border border-black/15 focus:border-black/30 placeholder:text-black/25'
-                        }`}
-                        autoFocus
-                        maxLength={20}
-                      />
-                      {!isOnWaitingList && joinWaitingList && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <input
-                            type="email"
-                            placeholder="la-tua@email.com"
-                            value={playerEmail}
-                            onChange={(e) => setPlayerEmail(e.target.value)}
-                            className={`w-full rounded-full py-2.5 px-4 focus:outline-none text-center text-[16px] ${
-                              isDark
-                                ? 'text-white bg-white/10 border border-white/15 focus:border-white/30 placeholder:text-white/25'
-                                : 'text-black bg-black/10 border border-black/15 focus:border-black/30 placeholder:text-black/25'
-                            }`}
-                          />
-                        </motion.div>
-                      )}
-                      {!isOnWaitingList && (
-                        <label className="flex items-center justify-center gap-2 cursor-pointer py-1">
-                          <div
-                            onClick={(e) => { e.preventDefault(); setJoinWaitingList(!joinWaitingList) }}
-                            className={`w-4 h-4 rounded flex items-center justify-center border transition-colors ${
-                              joinWaitingList
-                                ? 'bg-white border-white'
-                                : isDark
-                                  ? 'border-white/20 bg-transparent'
-                                  : 'border-black/20 bg-transparent'
-                            }`}
-                          >
-                            {joinWaitingList && (
-                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 20 20" fill="black">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                          </div>
-                          <span className={`text-xs ${isDark ? 'text-white/40' : 'text-black/40'}`}>Unisciti alla waiting list</span>
-                        </label>
-                      )}
-                      {isOnWaitingList && (
-                        <p className={`text-xs flex items-center justify-center gap-1 ${isDark ? 'text-white/30' : 'text-black/30'}`}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 20 20" fill="currentColor" className="text-green-400/60">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          Sei già nella waiting list
-                        </p>
-                      )}
-                      <motion.button
-                        type="submit"
-                        disabled={!playerName.trim() || (joinWaitingList && !isOnWaitingList && !playerEmail.trim()) || submitting}
-                        className={`w-full rounded-full font-medium py-2.5 text-sm transition-all duration-300 ${
-                          playerName.trim() && (!joinWaitingList || isOnWaitingList || playerEmail.trim())
-                            ? isDark
-                              ? 'bg-white text-black hover:bg-white/90 cursor-pointer'
-                              : 'bg-black text-white hover:bg-black/90 cursor-pointer'
-                            : isDark
-                              ? 'bg-white/10 text-white/30 cursor-not-allowed'
-                              : 'bg-black/10 text-black/30 cursor-not-allowed'
-                        }`}
-                        whileHover={playerName.trim() && (!joinWaitingList || isOnWaitingList || playerEmail.trim()) ? { scale: 1.02 } : {}}
-                        whileTap={playerName.trim() && (!joinWaitingList || isOnWaitingList || playerEmail.trim()) ? { scale: 0.98 } : {}}
-                      >
-                        {submitting ? 'Salvo...' : 'Salva punteggio'}
-                      </motion.button>
-                    </form>
-                  ) : (
+                  {submitted ? (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-1">
-                      <p className={`text-xs ${isDark ? 'text-white/40' : 'text-black/40'}`}>
-                        {rank <= 3 ? 'Sei sul podio!' : `Posizione #${rank}`}
+                      <p className={`text-sm ${isDark ? 'text-white/50' : 'text-black/50'}`}>
+                        {rank === 1 ? "1st place!" : rank === 2 ? "2nd place!" : rank === 3 ? "3rd place!" : `${rank}th place`}
+                        {' '}
+                        <span className={`${isDark ? 'text-white/30' : 'text-black/30'}`}>
+                          out of {leaderboard.length}
+                        </span>
                       </p>
-                      {!isOnWaitingList && joinWaitingList && (
-                        <p className="text-green-400/50 text-xs">Aggiunto alla waiting list!</p>
-                      )}
                     </motion.div>
+                  ) : (
+                    <p className={`text-xs ${isDark ? 'text-white/30' : 'text-black/30'}`}>
+                      {submitting ? 'Saving score...' : ''}
+                    </p>
+                  )}
+                  {canPlay ? (
+                    <motion.button
+                      onClick={resetGame}
+                      className={`transition-colors text-xs cursor-pointer underline underline-offset-2 ${isDark ? 'text-white/40 hover:text-white/70' : 'text-black/40 hover:text-black/70'}`}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      Play again
+                    </motion.button>
+                  ) : (
+                    <CooldownTimer cooldownEnd={cooldownEnd} isDark={isDark} />
                   )}
                   <motion.button
-                    onClick={resetGame}
-                    className={`transition-colors text-xs cursor-pointer underline underline-offset-2 ${isDark ? 'text-white/40 hover:text-white/70' : 'text-black/40 hover:text-black/70'}`}
-                    whileTap={{ scale: 0.95 }}
+                    onClick={async () => {
+                      if (followPlayUsed) {
+                        const medals = ['\u{1F947}', '\u{1F948}', '\u{1F949}']
+                        const top5 = leaderboard.slice(0, 5)
+                        const lines = top5.map((entry, i) => {
+                          const r = i < 3 ? medals[i] : `${i + 1}.`
+                          const isMe = playerName && entry.name.toLowerCase() === playerName.toLowerCase()
+                          return `${r} ${entry.name}${isMe ? ' (me)' : ''} \u{2014} ${entry.score.toLocaleString()}`
+                        })
+                        const imInTop5 = playerName && top5.some(e => e.name.toLowerCase() === playerName.toLowerCase())
+                        const text = `headformula leaderboard \u{1F3C6}\n\n${lines.join('\n')}\n\nCan you beat ${imInTop5 ? 'me' : 'them'}? #1 wins 1 SOL\nhttps://headformula.studio`
+                        if (navigator.share) {
+                          try {
+                            await navigator.share({ text })
+                          } catch { /* user cancelled */ }
+                        } else {
+                          window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank')
+                        }
+                      } else {
+                        window.open('https://x.com/headformula', '_blank')
+                      }
+                    }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className={`flex items-center justify-center gap-2 rounded-full font-medium py-2.5 px-6 text-sm transition-all duration-300 cursor-pointer ${
+                      isDark
+                        ? 'bg-white/10 text-white border border-white/15 hover:bg-white/15'
+                        : 'bg-black/10 text-black border border-black/15 hover:bg-black/15'
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
                   >
-                    Gioca ancora
+                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                    {followPlayUsed ? 'Share now' : 'Follow us'}
                   </motion.button>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+
+          {/* Explosion particles */}
+          {particles.length > 0 && (
+            <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+              {particles.map(p => (
+                <div
+                  key={p.id}
+                  className="absolute rounded-full"
+                  style={{
+                    left: p.x,
+                    top: p.y,
+                    width: p.size,
+                    height: p.size,
+                    backgroundColor: p.color,
+                    opacity: p.life,
+                    transform: `translate(-50%, -50%) scale(${0.5 + p.life * 0.5})`,
+                    boxShadow: `0 0 ${p.size * 2}px ${p.color}80`,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>}
 
         {/* Pieces tray */}
-        <div
+        {(canPlay || gameOver) && <div
           className="grid grid-cols-3 min-h-[100px]"
           style={{ width: `${GRID_SIZE * (CELL_SIZE + CELL_GAP) + GRID_PAD * 2}px`, touchAction: 'none' }}
         >
@@ -586,13 +810,13 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
               </div>
             )
           })}
-        </div>
+        </div>}
 
         {/* Instructions */}
-        {!gameOver && (
+        {canPlay && !gameOver && (
           <p className={`text-xs text-center max-w-xs ${isDark ? 'text-white/20' : 'text-black/20'}`}>
-            Trascina un pezzo sulla griglia per posizionarlo.
-            Completa righe o colonne per fare punti.
+            Drag a piece onto the grid to place it.
+            Complete rows or columns to score points.
           </p>
         )}
       </motion.div>
@@ -628,7 +852,7 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
       )}
 
       {/* Leaderboard section */}
-      <motion.div
+      {!embedded && <motion.div
         ref={leaderboardRef}
         initial={{ opacity: 0, y: 40 }}
         animate={leaderboardInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
@@ -639,10 +863,10 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
           isDark ? 'border-white/[0.08] bg-white/[0.03]' : 'border-black/[0.08] bg-black/[0.03]'
         }`}>
           <div className="flex items-center justify-center mb-5">
-            <h3 className={`text-sm font-semibold uppercase tracking-widest text-center ${isDark ? 'text-white/50' : 'text-black/50'}`}>Classifica</h3>
+            <h3 className={`text-sm font-semibold uppercase tracking-widest text-center ${isDark ? 'text-white/50' : 'text-black/50'}`}>Leaderboard</h3>
           </div>
           {leaderboard.length === 0 ? (
-            <p className={`text-sm text-center py-8 ${isDark ? 'text-white/20' : 'text-black/20'}`}>Nessun punteggio ancora. Gioca per primo!</p>
+            <p className={`text-sm text-center py-8 ${isDark ? 'text-white/20' : 'text-black/20'}`}>No scores yet. Be the first!</p>
           ) : (
             <div className="space-y-1">
               {leaderboard.slice(0, 10).map((entry, i) => (
@@ -666,7 +890,7 @@ export function BlockBlastGame({ userEmail = '', isOnWaitingList = false }: Bloc
             </div>
           )}
         </div>
-      </motion.div>
+      </motion.div>}
     </div>
   )
 }
