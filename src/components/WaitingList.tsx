@@ -669,7 +669,7 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.9, duration: 0.5 }}
-                    onClick={() => { setIsReturningFlow(true); setEmail(''); setPlayerName(''); setError(''); setStep('email') }}
+                    onClick={() => { setIsReturningFlow(true); setEmail(''); setPlayerName(''); setError(''); setEmailCooldownEnd(null); setStep('email') }}
                     className={`-mt-4 text-xs transition-colors cursor-pointer block mx-auto ${isDark ? 'text-white/30 hover:text-white/50' : 'text-black/30 hover:text-black/50'}`}
                     whileTap={{ scale: 0.95 }}
                   >
