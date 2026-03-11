@@ -12,12 +12,16 @@ function getStoredUser() {
   try {
     const raw = localStorage.getItem('hf_user')
     if (!raw) return null
-    return JSON.parse(raw) as { email: string; name: string; lastPlayed?: number }
+    return JSON.parse(raw) as { email: string; name: string; lastPlayed?: number; followPlayUsed?: boolean }
   } catch { return null }
 }
 
-function storeUser(email: string, name: string, lastPlayed?: number) {
-  localStorage.setItem('hf_user', JSON.stringify({ email, name, lastPlayed }))
+function storeUser(email: string, name: string, lastPlayed?: number, followPlayUsed?: boolean) {
+  const prev = getStoredUser()
+  localStorage.setItem('hf_user', JSON.stringify({
+    email, name, lastPlayed,
+    followPlayUsed: followPlayUsed ?? prev?.followPlayUsed ?? false,
+  }))
 }
 
 export default function Home() {
@@ -26,7 +30,10 @@ export default function Home() {
   const [isVerified, setIsVerified] = useState(false)
   const [canPlay, setCanPlay] = useState(true)
   const [cooldownEnd, setCooldownEnd] = useState<number | null>(null)
-  const [followPlayUsed, setFollowPlayUsed] = useState(false)
+  const [followPlayUsed, setFollowPlayUsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return getStoredUser()?.followPlayUsed ?? false
+  })
   const [resetKey, setResetKey] = useState(0)
   const { theme } = useTheme()
 
@@ -48,7 +55,10 @@ export default function Home() {
       fetch('/api/scores/cooldown?email=' + encodeURIComponent(stored.email))
         .then(res => res.json())
         .then(data => {
-          if (data.followPlayUsed) setFollowPlayUsed(true)
+          if (data.followPlayUsed) {
+            setFollowPlayUsed(true)
+            storeUser(stored.email, stored.name, stored.lastPlayed, true)
+          }
           if (data.cooldownEnd && data.cooldownEnd > Date.now()) {
             setCanPlay(false)
             setCooldownEnd(data.cooldownEnd)
@@ -98,7 +108,8 @@ export default function Home() {
     setCanPlay(true)
     setCooldownEnd(null)
     setFollowPlayUsed(true)
-  }, [])
+    storeUser(userEmail, userName, undefined, true)
+  }, [userEmail, userName])
 
 
   return (
