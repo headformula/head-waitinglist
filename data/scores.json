@@ -1,0 +1,32 @@
+[
+  {
+    "name": "x",
+    "score": 2540,
+    "date": "2026-03-11T12:54:55.753Z",
+    "joinedWaitingList": false
+  },
+  {
+    "name": "valerio",
+    "score": 1590,
+    "date": "2026-03-11T11:51:14.870Z"
+  },
+  {
+    "name": "lucas",
+    "email": "lu@fns.it",
+    "score": 1050,
+    "date": "2026-03-11T12:46:15.657Z",
+    "joinedWaitingList": true
+  },
+  {
+    "name": "scemo",
+    "email": "luca@gmail.com",
+    "score": 640,
+    "date": "2026-03-11T12:24:58.601Z",
+    "joinedWaitingList": false
+  },
+  {
+    "name": "suca",
+    "score": 530,
+    "date": "2026-03-11T12:04:32.066Z"
+  }
+]

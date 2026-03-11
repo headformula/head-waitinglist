@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Helvetica Now Display";
+  src: url("/fonts/HelveticaNowDisplay-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-heading: "Helvetica Now Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-body: "Helvetica Now Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  -webkit-text-size-adjust: 100%;
+  transition: background 0.5s ease, color 0.5s ease;
+}
+
+/* Theme variables */
+html, html[data-theme="dark"] {
+  --bg: #000;
+  --fg: #fff;
+}
+html[data-theme="light"] {
+  --bg: #fff;
+  --fg: #000;
+}
+
+/* Hide scrollbar but allow scrolling */
+html {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar {
+  display: none;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
