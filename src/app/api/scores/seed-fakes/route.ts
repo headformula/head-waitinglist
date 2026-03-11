@@ -33,7 +33,7 @@ function randomScore(min: number, max: number): number {
 }
 
 // How many fake users to add per cron run
-const FAKES_PER_RUN = 2
+const FAKES_PER_RUN = 5
 
 async function seedFakes(count: number) {
   const numToCreate = Math.min(Math.max(1, count), 30)
