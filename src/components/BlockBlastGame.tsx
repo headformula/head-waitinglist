@@ -727,13 +727,7 @@ export function BlockBlastGame({ userEmail = '', userName = '', canPlay = true, 
                         })
                         const imInTop5 = playerName && top5.some(e => e.name.toLowerCase() === playerName.toLowerCase())
                         const text = `headformula leaderboard \u{1F3C6}\n\n${lines.join('\n')}\n\nCan you beat ${imInTop5 ? 'me' : 'them'}? #1 wins 1 SOL\nhttps://headformula.studio`
-                        if (navigator.share) {
-                          try {
-                            await navigator.share({ text })
-                          } catch { /* user cancelled */ }
-                        } else {
-                          window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank')
-                        }
+                        window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank')
                       } else {
                         window.open('https://x.com/headformula', '_blank')
                       }
