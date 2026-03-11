@@ -9,6 +9,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ canPlay: true, cooldownEnd: null })
   }
 
+  // Find the most recent score for this email (for existing username check)
+  const { data: latestScore } = await supabase
+    .from('scores')
+    .select('name')
+    .eq('email', email)
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  const existingName = latestScore?.[0]?.name || null
+
   const cooldownCutoff = new Date(Date.now() - COOLDOWN_MS).toISOString()
   const { data } = await supabase
     .from('scores')
@@ -40,12 +50,12 @@ export async function GET(req: NextRequest) {
         .limit(1)
 
       if (followPlay && followPlay.length > 0) {
-        return NextResponse.json({ canPlay: true, cooldownEnd: null, followPlayUsed })
+        return NextResponse.json({ canPlay: true, cooldownEnd: null, followPlayUsed, existingName })
       }
 
-      return NextResponse.json({ canPlay: false, cooldownEnd, followPlayUsed })
+      return NextResponse.json({ canPlay: false, cooldownEnd, followPlayUsed, existingName })
     }
   }
 
-  return NextResponse.json({ canPlay: true, cooldownEnd: null, followPlayUsed })
+  return NextResponse.json({ canPlay: true, cooldownEnd: null, followPlayUsed, existingName })
 }

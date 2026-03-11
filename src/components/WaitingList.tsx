@@ -280,6 +280,13 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
         return
       }
 
+      // Check if this email is already associated with a different username
+      if (cooldownData.existingName && cooldownData.existingName.toLowerCase() !== playerName.trim().toLowerCase()) {
+        setError(`This email is already linked to username "${cooldownData.existingName}"`)
+        setSubmitting(false)
+        return
+      }
+
       const { error: otpError } = await supabase.auth.signInWithOtp({ email: email.trim() })
       if (otpError) {
         console.log('OTP Error:', otpError.status, otpError.message, otpError)
