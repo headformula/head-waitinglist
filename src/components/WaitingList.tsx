@@ -628,21 +628,16 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
                   </p>
                 </motion.div>
 
-                <motion.button
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5, duration: 0.4 }}
+                <button
                   onClick={() => setStep('pipeline')}
-                  className={`rounded-full font-semibold px-10 py-3.5 text-base transition-all duration-300 cursor-pointer ${
+                  className={`rounded-full font-semibold px-10 py-3.5 text-base transition-all duration-300 cursor-pointer active:scale-[0.97] hover:scale-[1.03] ${
                     isDark
                       ? 'bg-white text-black hover:bg-white/90'
                       : 'bg-black text-white hover:bg-black/90'
                   }`}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
                 >
                   {returningUser ? 'See what\u2019s coming' : 'Join the waitlist'}
-                </motion.button>
+                </button>
 
                 {!returningUser && (
                   <motion.div
@@ -659,16 +654,12 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
 
                 {/* Already subscribed link */}
                 {!returningUser && (
-                  <motion.button
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.9, duration: 0.5 }}
+                  <button
                     onClick={() => { setIsReturningFlow(true); setEmail(''); setPlayerName(''); setError(''); setEmailCooldownEnd(null); setStep('email') }}
-                    className={`-mt-4 text-xs transition-colors cursor-pointer block mx-auto ${isDark ? 'text-white/30 hover:text-white/50' : 'text-black/30 hover:text-black/50'}`}
-                    whileTap={{ scale: 0.95 }}
+                    className={`-mt-4 text-xs transition-colors cursor-pointer block mx-auto active:scale-[0.95] ${isDark ? 'text-white/30 hover:text-white/50' : 'text-black/30 hover:text-black/50'}`}
                   >
                     Already subscribed? Play now
-                  </motion.button>
+                  </button>
                 )}
 
                 {/* Returning user */}
@@ -684,18 +675,16 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
                       Welcome back, <span className={isDark ? 'text-white/60' : 'text-black/60'}>{returningUser.name}</span>
                     </p>
                     {canPlay ? (
-                      <motion.button
+                      <button
                         onClick={onReturningUserPlay}
-                        className={`rounded-full font-semibold px-8 py-2.5 text-sm transition-all duration-300 cursor-pointer ${
+                        className={`rounded-full font-semibold px-8 py-2.5 text-sm transition-all duration-300 cursor-pointer active:scale-[0.97] hover:scale-[1.03] ${
                           isDark
                             ? 'bg-white/10 text-white border border-white/15 hover:bg-white/15'
                             : 'bg-black/10 text-black border border-black/15 hover:bg-black/15'
                         }`}
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
                       >
                         Play now
-                      </motion.button>
+                      </button>
                     ) : (
                       <div className="flex flex-col items-center space-y-3">
                         <p className={`text-xs ${isDark ? 'text-white/25' : 'text-black/25'}`}>
@@ -703,21 +692,19 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
                         </p>
                         {!followPlayUsed && (
                           !followPlayPending ? (
-                            <motion.button
+                            <button
                               onClick={handleFollowToPlay}
-                              className={`flex items-center justify-center gap-2 rounded-full font-medium py-2.5 px-6 text-sm transition-all duration-300 cursor-pointer ${
+                              className={`flex items-center justify-center gap-2 rounded-full font-medium py-2.5 px-6 text-sm transition-all duration-300 cursor-pointer active:scale-[0.97] hover:scale-[1.02] ${
                                 isDark
                                   ? 'bg-white/10 text-white border border-white/15 hover:bg-white/15'
                                   : 'bg-black/10 text-black border border-black/15 hover:bg-black/15'
                               }`}
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.97 }}
                             >
                               <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor">
                                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                               </svg>
                               Follow us to play now
-                            </motion.button>
+                            </button>
                           ) : (
                             <p className={`text-xs ${isDark ? 'text-white/40' : 'text-black/40'}`}>
                               Follow us, then come back here...
@@ -811,21 +798,16 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
 
                 {/* CTA */}
                 {!returningUser && (
-                  <motion.button
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8, duration: 0.4 }}
+                  <button
                     onClick={() => setStep('contest')}
-                    className={`rounded-full font-semibold px-10 py-3.5 text-base transition-all duration-300 cursor-pointer ${
+                    className={`rounded-full font-semibold px-10 py-3.5 text-base transition-all duration-300 cursor-pointer active:scale-[0.97] hover:scale-[1.03] ${
                       isDark
                         ? 'bg-white text-black hover:bg-white/90'
                         : 'bg-black text-white hover:bg-black/90'
                     }`}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
                   >
                     Get early access
-                  </motion.button>
+                  </button>
                 )}
 
                 {returningUser && (
@@ -835,31 +817,25 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
                     transition={{ delay: 0.8, duration: 0.4 }}
                     className="flex flex-col gap-3 items-center"
                   >
-                    <motion.button
+                    <button
                       onClick={() => setStep('leaderboard')}
-                      className={`rounded-full font-semibold px-10 py-3.5 text-base transition-all duration-300 cursor-pointer ${
+                      className={`rounded-full font-semibold px-10 py-3.5 text-base transition-all duration-300 cursor-pointer active:scale-[0.97] hover:scale-[1.03] ${
                         isDark
                           ? 'bg-white text-black hover:bg-white/90'
                           : 'bg-black text-white hover:bg-black/90'
                       }`}
-                      whileHover={{ scale: 1.03 }}
-                      whileTap={{ scale: 0.97 }}
                     >
                       Go to Leaderboard
-                    </motion.button>
+                    </button>
                   </motion.div>
                 )}
 
-                <motion.button
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.9 }}
+                <button
                   onClick={() => setStep('hero')}
-                  className={`-mt-6 text-xs transition-colors cursor-pointer block mx-auto ${isDark ? 'text-white/25 hover:text-white/40' : 'text-black/25 hover:text-black/40'}`}
-                  whileTap={{ scale: 0.95 }}
+                  className={`-mt-6 text-xs transition-colors cursor-pointer block mx-auto active:scale-[0.95] ${isDark ? 'text-white/25 hover:text-white/40' : 'text-black/25 hover:text-black/40'}`}
                 >
                   &larr; Back
-                </motion.button>
+                </button>
               </motion.div>
             )}
 
@@ -947,16 +923,12 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
                   {podiumContent}
                 </motion.div>
 
-                <motion.button
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.7 }}
+                <button
                   onClick={() => setStep('pipeline')}
-                  className={`-mt-4 text-xs transition-colors cursor-pointer block mx-auto ${isDark ? 'text-white/25 hover:text-white/40' : 'text-black/25 hover:text-black/40'}`}
-                  whileTap={{ scale: 0.95 }}
+                  className={`-mt-4 text-xs transition-colors cursor-pointer block mx-auto active:scale-[0.95] ${isDark ? 'text-white/25 hover:text-white/40' : 'text-black/25 hover:text-black/40'}`}
                 >
                   &larr; Back
-                </motion.button>
+                </button>
               </motion.div>
             )}
 
@@ -1048,35 +1020,31 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
                         You can play again in <span className={isDark ? 'text-white/70' : 'text-black/70'}>{emailCooldown}</span>
                       </p>
                     </div>
-                    <motion.button
+                    <button
                       onClick={() => setStep('leaderboard')}
-                      className={`w-full rounded-full font-semibold py-2.5 px-6 text-sm transition-all duration-300 cursor-pointer ${
+                      className={`w-full rounded-full font-semibold py-2.5 px-6 text-sm transition-all duration-300 cursor-pointer active:scale-[0.97] hover:scale-[1.02] ${
                         isDark
                           ? 'bg-white text-black hover:bg-white/90'
                           : 'bg-black text-white hover:bg-black/90'
                       }`}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.97 }}
                     >
                       Go to Leaderboard
-                    </motion.button>
-                    <motion.a
+                    </button>
+                    <a
                       href="https://x.com/headformula"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`flex items-center justify-center gap-2 rounded-full font-medium py-2.5 px-6 text-sm transition-all duration-300 cursor-pointer ${
+                      className={`flex items-center justify-center gap-2 rounded-full font-medium py-2.5 px-6 text-sm transition-all duration-300 cursor-pointer active:scale-[0.97] hover:scale-[1.02] ${
                         isDark
                           ? 'bg-white/10 text-white border border-white/15 hover:bg-white/15'
                           : 'bg-black/10 text-black border border-black/15 hover:bg-black/15'
                       }`}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.97 }}
                     >
                       <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
                         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                       </svg>
                       Follow us
-                    </motion.a>
+                    </a>
                   </motion.div>
                 ) : (
                   <p className={`text-xs transition-colors duration-500 ${isDark ? 'text-white/25' : 'text-black/25'}`}>
@@ -1084,13 +1052,12 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
                   </p>
                 )}
 
-                <motion.button
+                <button
                   onClick={handleEmailBack}
-                  className={`mt-2 text-xs transition-colors cursor-pointer block mx-auto ${isDark ? 'text-white/25 hover:text-white/40' : 'text-black/25 hover:text-black/40'}`}
-                  whileTap={{ scale: 0.95 }}
+                  className={`mt-2 text-xs transition-colors cursor-pointer block mx-auto active:scale-[0.95] ${isDark ? 'text-white/25 hover:text-white/40' : 'text-black/25 hover:text-black/40'}`}
                 >
                   &larr; Back
-                </motion.button>
+                </button>
               </motion.div>
             )}
 
@@ -1168,34 +1135,30 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
                 </p>
 
                 <div className="flex flex-col w-full gap-3">
-                  <motion.button
+                  <button
                     onClick={handleBack}
                     disabled={submitting}
-                    className={`rounded-full font-medium px-8 py-3 transition-colors cursor-pointer ${
+                    className={`rounded-full font-medium px-8 py-3 transition-colors cursor-pointer active:scale-[0.98] hover:scale-[1.02] ${
                       isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-black/10 text-black hover:bg-black/20'
                     }`}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
                   >
                     Back
-                  </motion.button>
-                  <motion.button
+                  </button>
+                  <button
                     onClick={handleConfirmCode}
                     disabled={!code.every(d => d !== '') || submitting}
                     className={`flex-1 rounded-full font-medium py-3 border transition-all duration-300 ${
                       code.every(d => d !== '') && !submitting
                         ? isDark
-                          ? 'bg-white text-black border-transparent hover:bg-white/90 cursor-pointer'
-                          : 'bg-black text-white border-transparent hover:bg-black/90 cursor-pointer'
+                          ? 'bg-white text-black border-transparent hover:bg-white/90 cursor-pointer active:scale-[0.98] hover:scale-[1.02]'
+                          : 'bg-black text-white border-transparent hover:bg-black/90 cursor-pointer active:scale-[0.98] hover:scale-[1.02]'
                         : isDark
                           ? 'bg-white/5 text-white/50 border-white/10 cursor-not-allowed'
                           : 'bg-black/5 text-black/50 border-black/10 cursor-not-allowed'
                     }`}
-                    whileHover={code.every(d => d !== '') && !submitting ? { scale: 1.02 } : {}}
-                    whileTap={code.every(d => d !== '') && !submitting ? { scale: 0.98 } : {}}
                   >
                     {submitting ? 'Verifying...' : 'Confirm'}
-                  </motion.button>
+                  </button>
                 </div>
               </motion.div>
             )}
@@ -1254,18 +1217,16 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
                     <p className={`text-xs font-medium uppercase tracking-widest transition-colors duration-500 ${isDark ? 'text-white/30' : 'text-black/30'}`}>
                       Now the fun part
                     </p>
-                    <motion.button
+                    <button
                       onClick={handleGoToGame}
-                      className={`w-full rounded-full font-semibold py-4 text-base transition-all duration-300 cursor-pointer ${
+                      className={`w-full rounded-full font-semibold py-4 text-base transition-all duration-300 cursor-pointer active:scale-[0.97] hover:scale-[1.02] ${
                         isDark
                           ? 'bg-white text-black hover:bg-white/90'
                           : 'bg-black text-white hover:bg-black/90'
                       }`}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.97 }}
                     >
                       Play the game
-                    </motion.button>
+                    </button>
                     <p className={`text-xs transition-colors duration-500 ${isDark ? 'text-white/25' : 'text-black/25'}`}>
                       #1 on the leaderboard wins 1 SOL. Good luck.
                     </p>
@@ -1374,36 +1335,27 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
                   )}
                 </motion.div>
 
-                <motion.button
+                <button
                   type="button"
                   onClick={handleShareOnX}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5, duration: 0.4 }}
-                  className={`relative z-20 mx-auto flex items-center justify-center gap-2 rounded-full font-semibold px-10 py-3.5 text-base transition-all duration-300 cursor-pointer ${
+                  className={`relative z-20 mx-auto flex items-center justify-center gap-2 rounded-full font-semibold px-10 py-3.5 text-base transition-all duration-300 cursor-pointer active:scale-[0.97] hover:scale-[1.03] ${
                     isDark
                       ? 'bg-white/10 text-white border border-white/15 hover:bg-white/15'
                       : 'bg-black/10 text-black border border-black/15 hover:bg-black/15'
                   }`}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
                 >
                   <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
                     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                   </svg>
                   Share now
-                </motion.button>
+                </button>
 
-                <motion.button
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.6 }}
+                <button
                   onClick={() => setStep('pipeline')}
-                  className={`text-xs transition-colors cursor-pointer block mx-auto ${isDark ? 'text-white/25 hover:text-white/40' : 'text-black/25 hover:text-black/40'}`}
-                  whileTap={{ scale: 0.95 }}
+                  className={`text-xs transition-colors cursor-pointer block mx-auto active:scale-[0.95] ${isDark ? 'text-white/25 hover:text-white/40' : 'text-black/25 hover:text-black/40'}`}
                 >
                   &larr; Back
-                </motion.button>
+                </button>
               </motion.div>
             )}
 
