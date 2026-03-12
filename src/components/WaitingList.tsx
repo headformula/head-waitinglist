@@ -308,20 +308,52 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
   }
 
   const handleCodeChange = (index: number, value: string) => {
-    if (value.length > 1) return
+    const digits = value.replace(/\D/g, '')
+
+    // Multi-digit input (paste or autocomplete)
+    if (digits.length > 1) {
+      const newCode = [...code]
+      for (let i = 0; i < 6; i++) {
+        newCode[i] = digits[i] || ''
+      }
+      setCode(newCode)
+      const lastIndex = Math.min(digits.length, 6) - 1
+      codeInputRefs.current[lastIndex]?.focus()
+      if (digits.length >= 6) {
+        verifyCode(newCode.join(''))
+      }
+      return
+    }
+
     const newCode = [...code]
-    newCode[index] = value
+    newCode[index] = digits
     setCode(newCode)
 
-    if (value && index < 5) {
+    if (digits && index < 5) {
       codeInputRefs.current[index + 1]?.focus()
     }
 
-    if (index === 5 && value) {
+    if (index === 5 && digits) {
       const isComplete = newCode.every(d => d.length === 1)
       if (isComplete) {
         verifyCode(newCode.join(''))
       }
+    }
+  }
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault()
+    const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    if (!digits) return
+    const newCode = ['', '', '', '', '', '']
+    for (let i = 0; i < digits.length; i++) {
+      newCode[i] = digits[i]
+    }
+    setCode(newCode)
+    const lastIndex = Math.min(digits.length, 6) - 1
+    codeInputRefs.current[lastIndex]?.focus()
+    if (digits.length >= 6) {
+      verifyCode(newCode.join(''))
     }
   }
 
@@ -1100,6 +1132,8 @@ export function WaitingList({ onComplete, returningUser, canPlay = true, cooldow
                               value={digit}
                               onChange={e => handleCodeChange(i, e.target.value)}
                               onKeyDown={e => handleKeyDown(i, e)}
+                              onPaste={handlePaste}
+                              autoComplete={i === 0 ? 'one-time-code' : 'off'}
                               className={`w-8 text-center text-xl bg-transparent border-none focus:outline-none focus:ring-0 appearance-none transition-colors duration-500 ${isDark ? 'text-white' : 'text-black'}`}
                               style={{ caretColor: 'transparent' }}
                               disabled={submitting}
